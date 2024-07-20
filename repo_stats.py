@@ -4,8 +4,6 @@ import matplotlib.pyplot as plt
 from io import BytesIO
 from datetime import datetime
 
-print("Loading repo_stats.py")
-
 
 def get_repo_stats(repos):
     repo_stats = []
@@ -28,6 +26,7 @@ def most_starred_forked(repo_stats, top_n=5):
 
 
 def most_recent_activity(repo_stats, top_n=5):
+    # Sort by last_updated in descending order (most recent first)
     return sorted(repo_stats, key=lambda x: x['last_updated'], reverse=True)[:top_n]
 
 
@@ -43,30 +42,19 @@ def repo_size_distribution(repo_stats):
 
 
 def get_language_breakdown(repos, plot=False):
-    print("Inside get_language_breakdown function")
     languages = [repo['language'] for repo in repos if repo['language']]
     breakdown = dict(Counter(languages))
-    print(f"Language breakdown: {breakdown}")
 
     if plot:
-        print("Creating plot")
         plt.figure(figsize=(10, 6))
         plt.pie(breakdown.values(), labels=breakdown.keys(), autopct='%1.1f%%')
         plt.title('Repository Language Breakdown')
 
         img_buf = BytesIO()
-        print("Saving plot to buffer")
         plt.savefig(img_buf, format='png')
-        print(f"Buffer size after saving: {img_buf.tell()}")
         img_buf.seek(0)
         plt.close()
 
-        print(f"Returning breakdown and buffer (size: {len(img_buf.getvalue())})")
         return breakdown, img_buf
 
-    print("Returning breakdown only")
     return breakdown
-
-
-print("Finished loading repo_stats.py")
-print("Available functions:", [name for name in globals() if callable(globals()[name])])
