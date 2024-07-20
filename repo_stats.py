@@ -15,7 +15,8 @@ def get_repo_stats(repos):
             'stars': repo['stargazers_count'],
             'forks': repo['forks_count'],
             'size': repo['size'],
-            'last_updated': datetime.strptime(repo['updated_at'], '%Y-%m-%dT%H:%M:%SZ')
+            'last_updated': datetime.strptime(repo['updated_at'], '%Y-%m-%dT%H:%M:%SZ'),
+            'language': repo['language']
         })
     return repo_stats
 

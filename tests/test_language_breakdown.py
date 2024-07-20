@@ -1,8 +1,6 @@
 # tests/test_language_breakdown.py
 import unittest
-from unittest.mock import patch, Mock
-from io import BytesIO
-import matplotlib.pyplot as plt
+from unittest.mock import patch
 import importlib
 import sys
 import repo_stats
