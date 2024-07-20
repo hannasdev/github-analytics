@@ -16,6 +16,11 @@ class GitHubClient:
         response = requests.get(f"{self.base_url}/users/{username}/repos", headers=self.headers)
         return response.json()
 
-    def get_org_repos(self, org_name):
-        response = requests.get(f"{self.base_url}/orgs/{org_name}/repos", headers=self.headers)
-        return response.json()
+    def get_repo_commits(self, username, repo_name):
+        url = f"{self.base_url}/repos/{username}/{repo_name}/commits"
+        response = requests.get(url, headers=self.headers)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"Error fetching commits for {repo_name}: {response.status_code}")
+            return []
