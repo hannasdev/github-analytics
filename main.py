@@ -2,6 +2,7 @@
 from github_api.client import GitHubClient
 from repo_stats import get_repo_stats, most_starred_forked, most_recent_activity, repo_size_distribution
 from config import GITHUB_USERNAME
+from repo_stats import get_language_breakdown
 
 
 def main():
@@ -57,11 +58,18 @@ def run_analysis(username):
     recent_activity = most_recent_activity(repo_stats)
     repo_size_distribution(repo_stats)
 
+    language_breakdown, lang_plot = get_language_breakdown(repos, plot=True)
+
+    with open('language_breakdown.png', 'wb') as f:
+        f.write(lang_plot.getvalue())
+
     return {
         'top_starred': top_starred,
         'top_forked': top_forked,
-        'recent_activity': recent_activity
+        'recent_activity': recent_activity,
+        'language_breakdown': language_breakdown
     }
+
 
 if __name__ == "__main__":
     results = run_analysis(GITHUB_USERNAME)
@@ -80,6 +88,11 @@ if __name__ == "__main__":
 
         print(f"\nRepository size distribution plot for {GITHUB_USERNAME} saved as 'repo_size_distribution.png'")
 
+        print("\nLanguage Breakdown:")
+        for lang, count in results['language_breakdown'].items():
+            print(f"{lang}: {count} repositories")
+
+        print("\nLanguage breakdown plot saved as 'language_breakdown.png'")
 
 if __name__ == "__main__":
     main()
