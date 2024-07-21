@@ -3,28 +3,40 @@ from collections import Counter
 import matplotlib.pyplot as plt
 from datetime import datetime
 from dataclasses import dataclass
-from typing import Optional, List, Dict
+from typing import Any, List, Dict
 
 
-@dataclass
 class Repo:
-    name: str
-    stars: int
-    forks: int
-    size: int
-    last_updated: datetime
-    language: Optional[str]
+    def __init__(self, name: str, stars: int, forks: int, language: str, size: int, updated_at: datetime):
+        self.name = name
+        self.stars = stars
+        self.forks = forks
+        self.language = language
+        self.size = size
+        self.updated_at = updated_at
+        self.contributors: List[Dict[str, Any]] = []
 
     @classmethod
-    def from_dict(cls, data: Dict) -> 'Repo':
+    def from_dict(cls, data: Dict[str, Any]) -> 'Repo':
         return cls(
             name=data['name'],
             stars=data['stargazers_count'],
             forks=data['forks_count'],
+            language=data['language'] or 'Unknown',
             size=data['size'],
-            last_updated=datetime.strptime(data['updated_at'], '%Y-%m-%dT%H:%M:%SZ'),
-            language=data['language']
+            updated_at=datetime.strptime(data['updated_at'], "%Y-%m-%dT%H:%M:%SZ")
         )
+
+    def add_contributors(self, contributors: List[Dict[str, Any]]) -> None:
+        self.contributors = contributors
+
+    @property
+    def contributor_count(self) -> int:
+        return len(self.contributors)
+
+    @property
+    def last_updated(self) -> datetime:
+        return self.updated_at
 
     @staticmethod
     def most_starred_and_forked(repos: List['Repo'], top_n: int = 5) -> Dict[str, List['Repo']]:
@@ -63,3 +75,10 @@ class Repo:
         plt.ylabel('Number of Repositories')
         plt.savefig(filename)
         plt.close()
+
+    @staticmethod
+    def get_total_contributor_count(repos: List['Repo']) -> int:
+        unique_contributors = set()
+        for repo in repos:
+            unique_contributors.update(contributor['login'] for contributor in repo.contributors)
+        return len(unique_contributors)

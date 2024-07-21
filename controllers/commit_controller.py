@@ -1,4 +1,5 @@
 # controllers/commit_controller.py
+import logging
 from typing import List, Dict, Any, Callable
 from models.commit import Commit
 from services.github_service import GitHubService
@@ -8,6 +9,7 @@ class CommitController:
     def __init__(self, username: str, github_service: GitHubService):
         self.username = username
         self.github_service = github_service
+        self.logger = logging.getLogger(__name__)
 
     async def get_commits(self, progress_callback: Callable[[int], None]) -> List[Commit]:
         repos = await self.github_service.get_user_repos(self.username)
@@ -15,14 +17,11 @@ class CommitController:
 
         all_commits = []
         for i, repo in enumerate(repos):
-            try:
-                repo_commits = await self.github_service.get_repo_commits(self.username, repo['name'])
+            repo_commits = await self.github_service.get_repo_commits(self.username, repo['name'])
+            if repo_commits:
                 all_commits.extend([Commit.from_dict(commit) for commit in repo_commits])
-
-                # Update progress after processing each repository
-                progress_callback(1)
-            except Exception as e:
-                print(f"Warning: Error processing repository {repo['name']}: {str(e)}")
+            # Update progress after processing each repository
+            progress_callback(1)
 
         return all_commits
 
