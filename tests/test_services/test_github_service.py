@@ -1,8 +1,6 @@
 # /tests/test_services/test_github_service.py
-import io
-import sys
 import pytest
-from unittest.mock import patch, Mock
+from unittest.mock import Mock
 from services.github_service import GitHubService
 import aiohttp
 from aioresponses import aioresponses
@@ -63,23 +61,23 @@ async def test_get_repo_commits_multiple_pages(github_service):
 
 @pytest.mark.asyncio
 async def test_get_repo_commits_error(github_service):
+    # Mock the logger
+    github_service.logger = Mock()
+
     with aioresponses() as m:
         m.get(
             'https://api.github.com/repos/testuser/testrepo/commits?page=1&per_page=100',
             exception=aiohttp.ClientError("API Error")
         )
 
-        # Capture the printed output
-        captured_output = io.StringIO()
-        sys.stdout = captured_output
-
         commits = await github_service.get_repo_commits('testuser', 'testrepo')
 
-        # Restore stdout
-        sys.stdout = sys.__stdout__
-
         assert commits == []  # Check that an empty list is returned
-        assert "Error fetching commits for testrepo: API Error" in captured_output.getvalue()  # Check the error message
+
+        # Check that the error was logged
+        github_service.logger.error.assert_called_once_with(
+            "Error fetching commits for testrepo: API Error"
+        )
 
 if __name__ == '__main__':
     pytest.main()

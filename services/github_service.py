@@ -45,11 +45,9 @@ class GitHubService:
                 if e.status == 409:
                     self.logger.info(f"Resource not available or empty: {url}")
                     return None
-                self.logger.error(f"Error making request to {url}: {str(e)}")
-                raise
+                raise  # Re-raise the exception without logging
             except aiohttp.ClientError as e:
-                self.logger.error(f"Error making request to {url}: {str(e)}")
-                raise
+                raise  # Re-raise the exception without logging
 
     async def _check_rate_limit(self, response: aiohttp.ClientResponse) -> None:
         remaining: int = int(response.headers.get('X-RateLimit-Remaining', 0))
@@ -82,17 +80,21 @@ class GitHubService:
         page: int = 1
         while True:
             url: str = f"{self.base_url}/repos/{username}/{repo_name}/commits"
-            page_commits = await self._make_request(url, params={"page": page, "per_page": 100})
-            if page_commits is None:
-                self.logger.info(f"Repository {username}/{repo_name} is empty or has no commits.")
-                break
-            if not page_commits or not isinstance(page_commits, list):
-                break
-            commits.extend(page_commits)
-            if len(page_commits) < 100:
-                break
-            page += 1
-        return commits
+            try:
+                page_commits = await self._make_request(url, params={"page": page, "per_page": 100})
+                if page_commits is None:
+                    self.logger.info(f"Repository {username}/{repo_name} is empty or has no commits.")
+                    break
+                if not page_commits or not isinstance(page_commits, list):
+                    break
+                commits.extend(page_commits)
+                if len(page_commits) < 100:
+                    break
+                page += 1
+            except aiohttp.ClientError as e:
+                self.logger.error(f"Error fetching commits for {repo_name}: {str(e)}")
+                break  # Exit the loop on error
+        return commits  # Return the commits we've managed to fetch, even if it's an empty list
 
     async def get_repo_pull_requests(self, username: str, repo_name: str) -> List[Dict[str, Any]]:
         pull_requests: List[Dict[str, Any]] = []
