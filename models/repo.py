@@ -53,7 +53,7 @@ class Repo:
 
     @staticmethod
     def get_language_breakdown(repos: List['Repo']) -> Dict[str, int]:
-        languages = [repo.language for repo in repos if repo.language]
+        languages = [repo.language for repo in repos if repo.language and repo.language != 'Unknown']
         return dict(Counter(languages))
 
     @staticmethod

@@ -37,7 +37,7 @@ async def test_get_repos(repo_controller, mock_github_service, sample_repo_data)
     assert repos[0].name == 'repo1'
     assert repos[1].stars == 20
     assert repos[2].language == 'Python'
-    assert mock_progress_callback.call_count == 1  # Called once after fetching repos
+    assert mock_progress_callback.call_count == 4  # Once for fetching repos, and once for each of the 3 repos' contributors
 
 
 @pytest.mark.asyncio
@@ -65,10 +65,10 @@ async def test_analyze_repos(repo_controller, sample_repo_data):
         assert analysis['recent_activity'][0].name == 'repo3'
         assert analysis['language_breakdown'] == {'Python': 2, 'JavaScript': 1}
 
-        assert mock_create_bar_chart.call_count == 2
+        assert mock_create_bar_chart.call_count == 3  # For top starred, top forked, and top contributors
         assert mock_create_language_chart.call_count == 1
         assert mock_create_size_chart.call_count == 1
-        assert mock_progress_callback.call_count == 7  # Called for each step in analyze_repos
+        assert mock_progress_callback.call_count == 9  # Called for each step in analyze_repos (8 steps now)
 
 
 @pytest.mark.asyncio

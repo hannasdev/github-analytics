@@ -8,11 +8,11 @@ class TestRepoModel:
     @pytest.fixture
     def sample_repos(self):
         return [
-            Repo('repo1', 10, 5, 100, datetime(2023, 1, 1), 'Python'),
-            Repo('repo2', 20, 15, 200, datetime(2023, 2, 1), 'JavaScript'),
-            Repo('repo3', 5, 2, 50, datetime(2023, 3, 1), 'Python'),
-            Repo('repo4', 30, 10, 150, datetime(2023, 4, 1), 'Java'),
-            Repo('repo5', 15, 20, 300, datetime(2023, 5, 1), 'C++'),
+            Repo('repo1', 10, 5, 'Python', 100, datetime(2023, 1, 1)),
+            Repo('repo2', 20, 15, 'JavaScript', 200, datetime(2023, 2, 1)),
+            Repo('repo3', 5, 2, 'Python', 50, datetime(2023, 3, 1)),
+            Repo('repo4', 30, 10, 'Java', 150, datetime(2023, 4, 1)),
+            Repo('repo5', 15, 20, 'C++', 300, datetime(2023, 5, 1)),
         ]
 
     def test_from_dict(self):
@@ -53,8 +53,8 @@ class TestRepoModel:
         assert len(recent) == 3
         assert recent[0].name == 'repo5'
         assert recent[0].last_updated == datetime(2023, 5, 1)
-        assert recent[-1].name == 'repo3'
-        assert recent[-1].last_updated == datetime(2023, 3, 1)
+        assert recent[1].name == 'repo4'
+        assert recent[2].name == 'repo3'
 
     def test_get_language_breakdown(self, sample_repos):
         breakdown = Repo.get_language_breakdown(sample_repos)
