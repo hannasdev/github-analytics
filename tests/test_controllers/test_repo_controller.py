@@ -28,25 +28,28 @@ def sample_repo_data():
 @pytest.mark.asyncio
 async def test_get_repos(repo_controller, mock_github_service, sample_repo_data):
     mock_github_service.get_user_repos.return_value = sample_repo_data
+    mock_progress_callback = Mock()
 
-    repos = await repo_controller.get_repos()
+    repos = await repo_controller.get_repos(mock_progress_callback)
 
     assert len(repos) == 3
     assert all(isinstance(repo, Repo) for repo in repos)
     assert repos[0].name == 'repo1'
     assert repos[1].stars == 20
     assert repos[2].language == 'Python'
+    assert mock_progress_callback.call_count == 1  # Called once after fetching repos
 
 
 @pytest.mark.asyncio
 async def test_analyze_repos(repo_controller, sample_repo_data):
     repos = [Repo.from_dict(data) for data in sample_repo_data]
+    mock_progress_callback = Mock()
 
     with patch('controllers.repo_controller.chart_utils.create_bar_chart') as mock_create_bar_chart, \
          patch('models.repo.Repo.create_language_breakdown_chart') as mock_create_language_chart, \
          patch('models.repo.Repo.create_repo_size_distribution_chart') as mock_create_size_chart:
 
-        analysis = repo_controller.analyze_repos(repos)
+        analysis = repo_controller.analyze_repos(repos, mock_progress_callback)
 
         assert 'top_starred' in analysis
         assert 'top_forked' in analysis
@@ -65,23 +68,26 @@ async def test_analyze_repos(repo_controller, sample_repo_data):
         assert mock_create_bar_chart.call_count == 2
         assert mock_create_language_chart.call_count == 1
         assert mock_create_size_chart.call_count == 1
+        assert mock_progress_callback.call_count == 7  # Called for each step in analyze_repos
 
 
 @pytest.mark.asyncio
 async def test_run_analysis(repo_controller, mock_github_service, sample_repo_data):
     mock_github_service.get_user_repos.return_value = sample_repo_data
+    mock_progress_callback = Mock()
 
     with patch('controllers.repo_controller.chart_utils.create_bar_chart'), \
          patch('models.repo.Repo.create_language_breakdown_chart'), \
          patch('models.repo.Repo.create_repo_size_distribution_chart'):
 
-        analysis = await repo_controller.run_analysis()
+        analysis = await repo_controller.run_analysis(mock_progress_callback)
 
         assert 'top_starred' in analysis
         assert 'top_forked' in analysis
         assert 'recent_activity' in analysis
         assert 'language_breakdown' in analysis
         assert 'chart_files' in analysis
+        assert mock_progress_callback.call_count > 0  # Ensure the callback was called at least once
 
 if __name__ == '__main__':
     pytest.main()
