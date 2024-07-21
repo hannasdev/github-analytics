@@ -6,7 +6,14 @@ from models import Repo, Commit, PullRequest
 import json
 import logging
 from cachetools import TTLCache
-from config import GITHUB_API_BASE_URL, GITHUB_API_VERSION
+from config import (
+    GITHUB_API_BASE_URL, 
+    GITHUB_API_VERSION, 
+    CACHE_MAX_SIZE, 
+    CACHE_TTL, 
+    LOG_LEVEL, 
+    LOG_FORMAT
+)
 
 
 class GitHubService:
@@ -16,7 +23,10 @@ class GitHubService:
             "Authorization": f"token {token}",
             "Accept": f"application/vnd.github.{GITHUB_API_VERSION}+json"
         }
-        self.cache = TTLCache(maxsize=100, ttl=300)  # Cache with 5-minute TTL
+        self.cache = TTLCache(maxsize=CACHE_MAX_SIZE, ttl=CACHE_TTL)  # Cache with 5-minute TTL
+
+        # Set up logging
+        logging.basicConfig(level=LOG_LEVEL, format=LOG_FORMAT)
         self.logger = logging.getLogger(__name__)
 
     async def _make_request(self, url: str, params: Dict[str, Any] = None) -> Any:
