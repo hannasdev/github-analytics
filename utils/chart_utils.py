@@ -1,4 +1,4 @@
-# chart_utils.py
+# utils/chart_utils.py
 import matplotlib.pyplot as plt
 
 
