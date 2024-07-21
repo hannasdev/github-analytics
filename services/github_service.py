@@ -198,3 +198,17 @@ class GitHubService:
             else:
                 current_streak = 1
         return longest_streak
+
+    async def get_user_repo_count(self, username: str) -> int:
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(
+                    f"{self.base_url}/users/{username}",
+                    headers=self.headers
+                ) as response:
+                    response.raise_for_status()
+                    user_data = await response.json()
+                    return user_data['public_repos']
+            except aiohttp.ClientError as e:
+                print(f"Error fetching user data: {str(e)}")
+                return 0  # Return 0 if there's an error
