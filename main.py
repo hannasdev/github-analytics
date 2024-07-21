@@ -1,4 +1,7 @@
 # main.py
+import asyncio
+import aiohttp
+from tqdm.asyncio import tqdm
 import matplotlib.pyplot as plt
 from datetime import datetime
 from typing import List, Dict, Any, Tuple
@@ -10,35 +13,56 @@ from config import GITHUB_USERNAME
 from chart_utils import create_bar_chart, create_pr_stats_chart, create_commit_patterns_chart
 
 
-def process_repos(client: GitHubClient, username: str, repos: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], int, int]:
+async def process_repo(session: aiohttp.ClientSession, client: GitHubClient, username: str, repo: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], bool]:
+    try:
+        repo_commits = await client.get_repo_commits_async(session, username, repo['name'])
+        return repo_commits, True
+    except Exception as e:
+        print(f"Error processing commits for {repo['name']}: {str(e)}")
+        return [], False
+
+
+async def process_repos(client: GitHubClient, username: str, repos: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], int, int]:
     all_commits = []
     processed_repos = 0
     skipped_repos = 0
-    for repo in repos:
-        try:
-            repo_commits = client.get_repo_commits(username, repo['name'])
-            all_commits.extend(repo_commits)
+
+    async with aiohttp.ClientSession() as session:
+        tasks = [process_repo(session, client, username, repo) for repo in repos]
+        results = await tqdm.gather(*tasks, desc="Processing repositories")
+
+    for commits, success in results:
+        if success:
+            all_commits.extend(commits)
             processed_repos += 1
-        except Exception as e:
-            print(f"Error processing commits for {repo['name']}: {str(e)}")
+        else:
             skipped_repos += 1
+
     return all_commits, processed_repos, skipped_repos
 
 
-def process_pull_requests(username: str, repos: List[Dict[str, Any]]) -> Tuple[int, int]:
+async def process_pull_requests(client: GitHubClient, username: str, repos: List[Dict[str, Any]]) -> Tuple[int, int]:
     total_prs_opened = 0
     total_prs_closed = 0
-    for repo in repos:
-        try:
-            pr_stats = get_pull_requests_stats(username, repo['name'])
-            total_prs_opened += pr_stats['opened']
-            total_prs_closed += pr_stats['closed']
-        except Exception as e:
-            print(f"Error processing pull requests for {repo['name']}: {str(e)}")
+
+    async with aiohttp.ClientSession() as session:
+        tasks = [client.get_pull_requests_async(session, username, repo['name']) for repo in repos]
+        results = await tqdm.gather(*tasks, desc="Processing pull requests")
+
+    for pull_requests in results:
+        pr_stats = {'opened': 0, 'closed': 0}
+        for pr in pull_requests:
+            if pr['state'] == 'open':
+                pr_stats['opened'] += 1
+            elif pr['state'] == 'closed':
+                pr_stats['closed'] += 1
+        total_prs_opened += pr_stats['opened']
+        total_prs_closed += pr_stats['closed']
+
     return total_prs_opened, total_prs_closed
 
 
-def run_analysis(username: str, verbose: bool = False) -> None:
+async def run_analysis(username: str, verbose: bool = False) -> None:
     """
     Run the GitHub repository analysis for the given username.
 
@@ -50,7 +74,7 @@ def run_analysis(username: str, verbose: bool = False) -> None:
         return
 
     client = GitHubClient()
-    repos = client.get_user_repos(username)
+    repos = await client.get_user_repos_async(username)
 
     if not repos:
         print(f"No repositories found for user: {username}")
@@ -80,7 +104,7 @@ def run_analysis(username: str, verbose: bool = False) -> None:
         f.write(lang_plot.getvalue())
 
     # Commit analysis
-    all_commits, processed_repos, skipped_repos = process_repos(client, username, repos)
+    all_commits, processed_repos, skipped_repos = await process_repos(client, username, repos)
 
     if not all_commits:
         print("No commits found for analysis.")
@@ -97,7 +121,7 @@ def run_analysis(username: str, verbose: bool = False) -> None:
     create_commit_patterns_chart(avg_commit_frequency, longest_streak)
 
     # Collaboration metrics
-    total_prs_opened, total_prs_closed = process_pull_requests(username, repos)
+    total_prs_opened, total_prs_closed = await process_pull_requests(client, username, repos)
 
     print(f"\nPull Request Statistics:")
     print(f"Total PRs opened: {total_prs_opened}")
@@ -106,7 +130,7 @@ def run_analysis(username: str, verbose: bool = False) -> None:
     create_pr_stats_chart(total_prs_opened, total_prs_closed)
 
     try:
-        total_contributors, repos_without_contributors = get_contributor_count(username, [repo['name'] for repo in repos], verbose)
+        total_contributors, repos_without_contributors = await get_contributor_count(client, username, [repo['name'] for repo in repos], verbose)
         print(f"\nTotal unique contributors across all repositories: {total_contributors}")
     except Exception as e:
         print(f"Error calculating total contributors: {str(e)}")
@@ -136,4 +160,4 @@ def print_analysis_summary(total_repos: int, processed_repos: int, skipped_repos
 
 
 if __name__ == "__main__":
-    run_analysis(GITHUB_USERNAME, verbose=False)
+    asyncio.run(run_analysis(GITHUB_USERNAME, verbose=False))
