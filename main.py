@@ -53,8 +53,20 @@ def run_analysis(username):
         f.write(lang_plot.getvalue())
 
     all_commits = []
+    processed_repos = 0
+    skipped_repos = 0
     for repo in repos:
-        all_commits.extend(client.get_repo_commits(username, repo['name']))
+        try:
+            repo_commits = client.get_repo_commits(username, repo['name'])
+            all_commits.extend(repo_commits)
+            processed_repos += 1
+        except Exception as e:
+            print(f"Error processing commits for {repo['name']}: {str(e)}")
+            skipped_repos += 1
+
+    if not all_commits:
+        print("No commits found for analysis.")
+        return
 
     commit_time_distribution = get_commit_time_distribution(all_commits)
     create_bar_chart(list(commit_time_distribution.items()),
@@ -71,7 +83,14 @@ def run_analysis(username):
     plt.savefig("commit_patterns.png")
     plt.close()
 
-    print("Analysis complete. All graphs have been saved as PNG files.")
+    print("\nAnalysis Summary:")
+    print(f"Total repositories: {len(repos)}")
+    print(f"Processed repositories: {processed_repos}")
+    print(f"Skipped repositories: {skipped_repos}")
+    print(f"Total commits analyzed: {len(all_commits)}")
+    print(f"Average commit frequency: {avg_commit_frequency:.2f} commits per day")
+    print(f"Longest commit streak: {longest_streak} days")
+    print("\nAnalysis complete. All graphs have been saved as PNG files.")
 
 
 if __name__ == "__main__":

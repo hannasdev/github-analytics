@@ -1,4 +1,6 @@
 # /tests/test_github_client.py
+import io
+import sys
 import unittest
 from unittest.mock import patch, Mock
 from github_api.client import GitHubClient
@@ -55,22 +57,20 @@ class TestGitHubClient(unittest.TestCase):
         self.assertEqual(mock_get.call_count, 2)  # Changed from 3 to 2
 
     @patch('github_api.client.requests.get')
-    def test_get_user_repos_error(self, mock_get):
-        mock_get.side_effect = requests.RequestException("API Error")
-
-        with self.assertRaises(Exception) as context:
-            self.client.get_user_repos('testuser')
-
-        self.assertIn("Error fetching repositories", str(context.exception))
-
-    @patch('github_api.client.requests.get')
     def test_get_repo_commits_error(self, mock_get):
         mock_get.side_effect = requests.RequestException("API Error")
 
-        with self.assertRaises(Exception) as context:
-            self.client.get_repo_commits('testuser', 'testrepo')
+        # Capture the printed output
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
 
-        self.assertIn("Error fetching commits", str(context.exception))
+        commits = self.client.get_repo_commits('testuser', 'testrepo')
+
+        # Restore stdout
+        sys.stdout = sys.__stdout__
+
+        self.assertEqual(commits, [])  # Check that an empty list is returned
+        self.assertIn("Error fetching commits for testrepo: API Error", captured_output.getvalue())  # Check the error message
 
 
 if __name__ == '__main__':

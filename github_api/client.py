@@ -42,6 +42,9 @@ class GitHubClient:
                     headers=self.headers,
                     params={"page": page, "per_page": 100}
                 )
+                if response.status_code == 409:
+                    print(f"Warning: Repository {repo_name} is empty or has been moved. Skipping.")
+                    break
                 response.raise_for_status()
                 page_commits = response.json()
                 if not page_commits or not isinstance(page_commits, list):
@@ -51,5 +54,6 @@ class GitHubClient:
                     break
                 page += 1
             except requests.RequestException as e:
-                raise Exception(f"Error fetching commits for {repo_name}: {str(e)}")
+                print(f"Error fetching commits for {repo_name}: {str(e)}")
+                break
         return commits
