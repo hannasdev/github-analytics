@@ -1,5 +1,6 @@
 # github_api/client.py
 import requests
+import json
 from typing import List, Dict, Any
 from config import GITHUB_TOKEN
 
@@ -57,3 +58,62 @@ class GitHubClient:
                 print(f"Error fetching commits for {repo_name}: {str(e)}")
                 break
         return commits
+
+    def get_pull_requests(self, username: str, repo_name: str) -> List[Dict[str, Any]]:
+        pull_requests = []
+        page = 1
+        while True:
+            try:
+                response = requests.get(
+                    f"{self.base_url}/repos/{username}/{repo_name}/pulls",
+                    headers=self.headers,
+                    params={"state": "all", "page": page, "per_page": 100}
+                )
+                response.raise_for_status()
+                page_prs = response.json()
+                if not page_prs:
+                    break
+                pull_requests.extend(page_prs)
+                page += 1
+            except requests.RequestException as e:
+                print(f"Error fetching pull requests for {repo_name}: {str(e)}")
+                break
+        return pull_requests
+
+    def get_repo_contributors(self, username: str, repo_name: str, verbose: bool = False) -> List[Dict[str, Any]]:
+        contributors = []
+        page = 1
+        while True:
+            try:
+                response = requests.get(
+                    f"{self.base_url}/repos/{username}/{repo_name}/contributors",
+                    headers=self.headers,
+                    params={"page": page, "per_page": 100}
+                )
+
+                if response.status_code == 204:
+                    if verbose:
+                        print(f"No contributors found for {repo_name}")
+                    break
+
+                response.raise_for_status()
+
+                if verbose:
+                    print(f"Response status code for {repo_name}: {response.status_code}")
+                    print(f"Response content for {repo_name}: {response.text[:100]}...")  # Print first 100 characters
+
+                page_contributors = response.json()
+                if not page_contributors:
+                    break
+                contributors.extend(page_contributors)
+                page += 1
+            except json.JSONDecodeError as e:
+                if verbose:
+                    print(f"Error decoding JSON for {repo_name}: {str(e)}")
+                    print(f"Response content: {response.text}")
+                break
+            except requests.RequestException as e:
+                if verbose:
+                    print(f"Error fetching contributors for {repo_name}: {str(e)}")
+                break
+        return contributors

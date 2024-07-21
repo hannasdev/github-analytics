@@ -4,6 +4,7 @@ from datetime import datetime
 from github_api.client import GitHubClient
 from repo_stats import get_repo_stats, most_starred_forked, most_recent_activity, repo_size_distribution, get_language_breakdown
 from commit_analysis import get_commit_time_distribution, get_average_commit_frequency, get_longest_streak
+from collaboration_metrics import get_pull_requests_stats, get_contributor_count
 from config import GITHUB_USERNAME
 
 
@@ -19,7 +20,7 @@ def create_bar_chart(data, title, xlabel, ylabel, filename):
     plt.close()
 
 
-def run_analysis(username):
+def run_analysis(username, verbose=False):
     if not username:
         print("Error: GitHub username not provided")
         return
@@ -83,15 +84,47 @@ def run_analysis(username):
     plt.savefig("commit_patterns.png")
     plt.close()
 
+    # New collaboration metrics
+    total_prs_opened = 0
+    total_prs_closed = 0
+    repos_without_contributors = 0
+    for repo in repos:
+        try:
+            pr_stats = get_pull_requests_stats(username, repo['name'])
+            total_prs_opened += pr_stats['opened']
+            total_prs_closed += pr_stats['closed']
+        except Exception as e:
+            print(f"Error processing pull requests for {repo['name']}: {str(e)}")
+
+    print(f"\nPull Request Statistics:")
+    print(f"Total PRs opened: {total_prs_opened}")
+    print(f"Total PRs closed: {total_prs_closed}")
+
+    # Create a simple bar chart for PR stats
+    plt.figure(figsize=(10, 6))
+    plt.bar(['Opened PRs', 'Closed PRs'], [total_prs_opened, total_prs_closed])
+    plt.title("Pull Request Statistics")
+    plt.savefig("pr_stats.png")
+    plt.close()
+
+    try:
+        total_contributors, repos_without_contributors = get_contributor_count(username, [repo['name'] for repo in repos], verbose)
+        print(f"\nTotal unique contributors across all repositories: {total_contributors}")
+    except Exception as e:
+        print(f"Error calculating total contributors: {str(e)}")
+        total_contributors = "Unable to calculate"
+
     print("\nAnalysis Summary:")
     print(f"Total repositories: {len(repos)}")
     print(f"Processed repositories: {processed_repos}")
     print(f"Skipped repositories: {skipped_repos}")
+    print(f"Repositories without contributors: {repos_without_contributors}")
     print(f"Total commits analyzed: {len(all_commits)}")
     print(f"Average commit frequency: {avg_commit_frequency:.2f} commits per day")
     print(f"Longest commit streak: {longest_streak} days")
+    print(f"Total unique contributors: {total_contributors}")
     print("\nAnalysis complete. All graphs have been saved as PNG files.")
 
 
 if __name__ == "__main__":
-    run_analysis(GITHUB_USERNAME)
+    run_analysis(GITHUB_USERNAME, verbose=False)
