@@ -1,6 +1,6 @@
 # github_api/client.py
-
 import requests
+from typing import List, Dict, Any
 from config import GITHUB_TOKEN
 
 
@@ -12,15 +12,44 @@ class GitHubClient:
             "Accept": "application/vnd.github.v3+json"
         }
 
-    def get_user_repos(self, username):
-        response = requests.get(f"{self.base_url}/users/{username}/repos", headers=self.headers)
-        return response.json()
+    def get_user_repos(self, username: str) -> List[Dict[str, Any]]:
+        repos = []
+        page = 1
+        while True:
+            try:
+                response = requests.get(
+                    f"{self.base_url}/users/{username}/repos",
+                    headers=self.headers,
+                    params={"page": page, "per_page": 100}
+                )
+                response.raise_for_status()
+                page_repos = response.json()
+                if not page_repos:
+                    break
+                repos.extend(page_repos)
+                page += 1
+            except requests.RequestException as e:
+                raise Exception(f"Error fetching repositories: {str(e)}")
+        return repos
 
-    def get_repo_commits(self, username, repo_name):
-        url = f"{self.base_url}/repos/{username}/{repo_name}/commits"
-        response = requests.get(url, headers=self.headers)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            print(f"Error fetching commits for {repo_name}: {response.status_code}")
-            return []
+    def get_repo_commits(self, username: str, repo_name: str) -> List[Dict[str, Any]]:
+        commits = []
+        page = 1
+        while True:
+            try:
+                response = requests.get(
+                    f"{self.base_url}/repos/{username}/{repo_name}/commits",
+                    headers=self.headers,
+                    params={"page": page, "per_page": 100}
+                )
+                response.raise_for_status()
+                page_commits = response.json()
+                if not page_commits or not isinstance(page_commits, list):
+                    break
+                commits.extend(page_commits)
+                if len(page_commits) < 100:
+                    break
+                page += 1
+            except requests.RequestException as e:
+                raise Exception(f"Error fetching commits for {repo_name}: {str(e)}")
+        return commits
