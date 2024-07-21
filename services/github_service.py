@@ -16,6 +16,7 @@ from config import (
     LOG_FORMAT
 )
 
+
 class GitHubService:
     def __init__(self, token: str) -> None:
         self.base_url: str = GITHUB_API_BASE_URL
@@ -216,7 +217,8 @@ class GitHubService:
             return 0
         dates: List[datetime] = [datetime.strptime(commit['commit']['author']['date'], "%Y-%m-%dT%H:%M:%SZ").date() for commit in commits]
         dates.sort()
-        longest_streak: int = current_streak: int = 1
+        longest_streak: int = 1
+        current_streak: int = 1
         for i in range(1, len(dates)):
             if dates[i] - dates[i-1] == timedelta(days=1):
                 current_streak += 1
