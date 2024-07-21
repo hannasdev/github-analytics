@@ -1,39 +1,60 @@
 # services/github_service.py
 import aiohttp
 import asyncio
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Any
 from models import Repo, Commit, PullRequest
 import json
+import logging
+from cachetools import TTLCache
+from config import GITHUB_API_BASE_URL, GITHUB_API_VERSION
 
 
 class GitHubService:
     def __init__(self, token: str):
-        self.base_url = "https://api.github.com"
+        self.base_url = GITHUB_API_BASE_URL
         self.headers = {
             "Authorization": f"token {token}",
-            "Accept": "application/vnd.github.v3+json"
+            "Accept": f"application/vnd.github.{GITHUB_API_VERSION}+json"
         }
+        self.cache = TTLCache(maxsize=100, ttl=300)  # Cache with 5-minute TTL
+        self.logger = logging.getLogger(__name__)
+
+    async def _make_request(self, url: str, params: Dict[str, Any] = None) -> Any:
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(url, headers=self.headers, params=params) as response:
+                    await self._check_rate_limit(response)
+                    response.raise_for_status()
+                    return await response.json()
+            except aiohttp.ClientError as e:
+                self.logger.error(f"Error making request to {url}: {str(e)}")
+                raise
+
+    async def _check_rate_limit(self, response: aiohttp.ClientResponse) -> None:
+        remaining = int(response.headers.get('X-RateLimit-Remaining', 0))
+        if remaining <= 10:
+            reset_time = int(response.headers.get('X-RateLimit-Reset', 0))
+            wait_time = max(reset_time - asyncio.get_event_loop().time(), 0)
+            self.logger.warning(f"Rate limit nearly exceeded. Waiting for {wait_time} seconds.")
+            await asyncio.sleep(wait_time)
 
     async def get_user_repos(self, username: str) -> List[Repo]:
-        async with aiohttp.ClientSession() as session:
-            repos = []
-            page = 1
-            while True:
-                try:
-                    async with session.get(
-                        f"{self.base_url}/users/{username}/repos",
-                        headers=self.headers,
-                        params={"page": page, "per_page": 100}
-                    ) as response:
-                        response.raise_for_status()
-                        page_repos = await response.json()
-                        if not page_repos:
-                            break
-                        repos.extend(page_repos)
-                        page += 1
-                except aiohttp.ClientError as e:
-                    raise Exception(f"Error fetching repositories: {str(e)}")
-            return repos
+        cache_key = f"user_repos_{username}"
+        if cache_key in self.cache:
+            return self.cache[cache_key]
+
+        repos = []
+        page = 1
+        while True:
+            url = f"{self.base_url}/users/{username}/repos"
+            page_repos = await self._make_request(url, params={"page": page, "per_page": 100})
+            if not page_repos:
+                break
+            repos.extend(page_repos)
+            page += 1
+
+        self.cache[cache_key] = repos
+        return repos
 
     async def get_repo_commits(self, username: str, repo_name: str) -> List[Commit]:
         async with aiohttp.ClientSession() as session:
